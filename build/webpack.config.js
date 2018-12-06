@@ -10,6 +10,9 @@ const inProjectSrc = (file) => inProject(project.srcDir, file)
 const __DEV__ = project.env === 'development'
 const __TEST__ = project.env === 'test'
 const __PROD__ = project.env === 'production'
+const fs = require('fs')
+const lessToJs = require('less-vars-to-js')
+const themeVariables = lessToJs(fs.readFileSync(path.join(__dirname, '../src/styles/default.less'), 'utf8'))
 
 const config = {
   entry: {
@@ -73,6 +76,8 @@ config.module.rules.push({
             useBuiltIns: true // we polyfill Object.assign in src/normalize.js
           },
         ],
+        // configure antd in babel loader
+        ['import', { libraryName: 'antd', style: true }]
       ],
       presets: [
         'babel-preset-react',
@@ -96,53 +101,95 @@ const extractStyles = new ExtractTextPlugin({
   disable: __DEV__,
 })
 
-config.module.rules.push({
-  test: /\.(sass|scss)$/,
-  loader: extractStyles.extract({
-    fallback: 'style-loader',
-    use: [
-      {
-        loader: 'css-loader',
-        options: {
-          sourceMap: project.sourcemaps,
-          minimize: {
-            autoprefixer: {
-              add: true,
-              remove: true,
-              browsers: ['last 2 versions'],
+config.module.rules.push(
+  {
+    test: /\.(sass|scss)$/,
+    loader: extractStyles.extract({
+      fallback: 'style-loader',
+      use: [
+        {
+          loader: 'css-loader',
+          options: {
+            sourceMap: project.sourcemaps,
+            minimize: {
+              autoprefixer: {
+                add: true,
+                remove: true,
+                browsers: ['last 2 versions'],
+              },
+              discardComments: {
+                removeAll: true,
+              },
+              discardUnused: false,
+              mergeIdents: false,
+              reduceIdents: false,
+              safe: true,
+              sourcemap: project.sourcemaps,
             },
-            discardComments: {
-              removeAll : true,
-            },
-            discardUnused: false,
-            mergeIdents: false,
-            reduceIdents: false,
-            safe: true,
-            sourcemap: project.sourcemaps,
           },
         },
-      },
-      {
-        loader: 'sass-loader',
-        options: {
-          sourceMap: project.sourcemaps,
-          includePaths: [
-            inProjectSrc('styles'),
-          ],
+        {
+          loader: 'sass-loader',
+          options: {
+            sourceMap: project.sourcemaps,
+            includePaths: [
+              inProjectSrc('styles'),
+            ],
+          },
+        }
+      ],
+    })
+  },
+  {
+    test: /\.less$/,
+    loader: extractStyles.extract({
+      fallback: 'style-loader',
+      use: [
+        {
+          loader: 'css-loader',
+          options: {
+            javascriptEnabled: true,
+            sourceMap: project.sourcemaps,
+            minimize: {
+              autoprefixer: {
+                add: true,
+                remove: true,
+                browsers: ['last 2 versions'],
+              },
+              discardComments: {
+                removeAll: true,
+              },
+              discardUnused: false,
+              mergeIdents: false,
+              reduceIdents: false,
+              safe: true,
+              sourcemap: project.sourcemaps,
+            },
+          },
         },
-      }
-    ],
+        {
+          loader: 'less-loader',
+          options: {
+            modifyVars: themeVariables,
+            javascriptEnabled: true,
+            sourceMap: project.sourcemaps,
+            includePaths: [
+              inProjectSrc('styles'),
+            ],
+          },
+        }
+      ],
+    })
   })
-})
 config.plugins.push(extractStyles)
 
 // Images
 // ------------------------------------
 config.module.rules.push({
-  test    : /\.(png|jpg|gif)$/,
-  loader  : 'url-loader',
-  options : {
-    limit : 8192,
+  test: /\.(png|jpg|gif)$/,
+  loader: 'url-loader',
+  options: {
+    limit: 8192,
   },
 })
 
@@ -160,11 +207,11 @@ config.module.rules.push({
   const mimetype = font[1]
 
   config.module.rules.push({
-    test    : new RegExp(`\\.${extension}$`),
-    loader  : 'url-loader',
-    options : {
-      name  : 'fonts/[name].[ext]',
-      limit : 10000,
+    test: new RegExp(`\\.${extension}$`),
+    loader: 'url-loader',
+    options: {
+      name: 'fonts/[name].[ext]',
+      limit: 10000,
       mimetype,
     },
   })
